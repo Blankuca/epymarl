@@ -2,7 +2,7 @@ from envs import REGISTRY as env_REGISTRY
 from functools import partial
 from components.episode_buffer import EpisodeBatch
 import numpy as np
-
+import pandas as pd
 
 class EpisodeRunner:
 
@@ -52,6 +52,16 @@ class EpisodeRunner:
         episode_return = 0
         self.mac.init_hidden(batch_size=self.batch_size)
 
+        step_data = {
+            "state" : list(self.env.get_state()),
+            "obs" : [list(x) for x in self.env.get_obs()],
+            "actions": [0,0],
+            "rewards": [0,0],
+            "terminated": False
+        }
+
+        episode_replay = [step_data]
+
         while not terminated:
 
             pre_transition_data = {
@@ -66,7 +76,8 @@ class EpisodeRunner:
             # Receive the actions for each agent at this timestep in a batch of size 1
             actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
 
-            reward, terminated, env_info = self.env.step(actions[0])
+            rewards, terminated, env_info = self.env.step(actions[0])
+            reward = sum(rewards)
             episode_return += reward
 
             post_transition_data = {
@@ -78,6 +89,15 @@ class EpisodeRunner:
             self.batch.update(post_transition_data, ts=self.t)
 
             self.t += 1
+
+            step_data = {
+                "state" : list(self.env.get_state()),
+                "obs" : [list(x) for x in self.env.get_obs()],
+                "actions": actions[0].tolist(),
+                "rewards": rewards,
+                "terminated": terminated != env_info.get("episode_limit", False)
+            }
+            episode_replay.append(step_data)
 
         last_data = {
             "state": [self.env.get_state()],
@@ -110,7 +130,7 @@ class EpisodeRunner:
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
             self.log_train_stats_t = self.t_env
 
-        return self.batch
+        return self.batch, episode_replay
 
     def _log(self, returns, stats, prefix):
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)

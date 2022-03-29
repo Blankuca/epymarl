@@ -15,6 +15,14 @@ from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
 
+import pandas as pd
+import pickle
+
+import os
+
+path = "results/replays"
+i = len(next(os.walk(path))[1]) + 1
+os.mkdir(F"{path}/{i}")
 
 def run(_run, _config, _log):
 
@@ -179,10 +187,15 @@ def run_sequential(args, logger):
 
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
 
+    rewards = []
+    losses = []
+    rewards_avg = []
+    episodes_list = []
+
     while runner.t_env <= args.t_max:
 
         # Run for a whole episode at a time
-        episode_batch = runner.run(test_mode=False)
+        episode_batch, episode_replay = runner.run(test_mode=False)
         buffer.insert_episode_batch(episode_batch)
 
         if buffer.can_sample(args.batch_size):
@@ -195,7 +208,11 @@ def run_sequential(args, logger):
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)
 
-            learner.train(episode_sample, runner.t_env, episode)
+            loss = learner.train(episode_sample, runner.t_env, episode)
+            losses.append(loss)
+
+        df = pd.DataFrame(episode_replay)
+        rewards_avg.append([sum(x) for x in zip(*df.rewards)])
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
@@ -239,6 +256,22 @@ def run_sequential(args, logger):
             logger.print_recent_stats()
             last_log_T = runner.t_env
 
+            # Save episode data
+            df.to_csv(f'results/replays/{i}/episode_{episode}.gz',index=False)
+
+            rewards.append([sum(x)/len(rewards_avg) for x in zip(*rewards_avg)])
+            rewards_avg = []
+            episodes_list.append(episode)
+
+            with open(f"results/replays/{i}/returns.pkl", "wb") as file:   #Pickling
+                pickle.dump(rewards, file)
+
+            with open(f"results/replays/{i}/losses.pkl", "wb") as file:   #Pickling
+                pickle.dump(losses, file)
+
+            with open(f"results/replays/{i}/episodes.pkl", "wb") as file:   #Pickling
+                pickle.dump(episodes_list, file)
+
     runner.close_env()
     logger.console_logger.info("Finished Training")
 
@@ -261,3 +294,10 @@ def args_sanity_check(config, _log):
         ) * config["batch_size_run"]
 
     return config
+
+
+
+    
+
+
+
