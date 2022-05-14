@@ -1,0 +1,43 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    {
+       
+        "name": "RWARE",
+        "type": "python",
+        "request": "launch",
+        "program": "src/main.py",
+        "console": "integratedTerminal",
+        "justMyCode": true,
+        "args": ["--config=qmix", "--env-config=gymma", "with", "env_args.time_limit=25", "env_args.key=rware:rware-tiny-2ag-v1"]
+    },
+    {
+        "name": "LBForgaging",
+        "type": "python",
+        "request": "launch",
+        "program": "src/main.py",
+        "console": "integratedTerminal",
+        "justMyCode": true,
+        "args": ["--config=iql", "--env-config=gymma", "with", "env_args.time_limit=50", "env_args.key=lbforaging:Foraging-12x12-2p-3f-v2"]
+    },
+    {
+        "name": "Plots",
+        "type": "python",
+        "request": "launch",
+        "program": "src/data_visualization.py",
+        "console": "integratedTerminal",
+        "justMyCode": true
+    },
+    {
+        "name": "Combine replays",
+        "type": "python",
+        "request": "launch",
+        "program": "combine_data.py",
+        "console": "integratedTerminal",
+        "justMyCode": true
+    }
+    ]
+}

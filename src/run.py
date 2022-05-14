@@ -17,14 +17,12 @@ from components.transforms import OneHot
 
 import pandas as pd
 import pickle
+import numpy as np
 
 import os
 
-path = "results/replays"
-i = len(next(os.walk(path))[1]) + 1
-os.mkdir(F"{path}/{i}")
-
 def run(_run, _config, _log):
+    global dir_path
 
     # check args sanity
     _config = args_sanity_check(_config, _log)
@@ -47,6 +45,13 @@ def run(_run, _config, _log):
     except:
         map_name = _config["env_args"]["key"]   
     unique_token = f"{_config['name']}_seed{_config['seed']}_{map_name}_{datetime.datetime.now()}"
+
+    dir_path = f"results/replays/{map_name}"
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    i = len(next(os.walk(dir_path))[1]) + 1
+    dir_path = f"{dir_path}/{i}"
+    os.mkdir(dir_path)
 
     args.unique_token = unique_token
     if args.use_tensorboard:
@@ -257,19 +262,30 @@ def run_sequential(args, logger):
             last_log_T = runner.t_env
 
             # Save episode data
-            df.to_csv(f'results/replays/{i}/episode_{episode}.gz',index=False)
+            # df.to_csv(f'results/replays/{i}/episode_{episode}.gz',index=False)
 
+            with open(f'{dir_path}/episode_{episode}.gz', 'wb') as handle:
+                episode_data = df.to_dict("list")
+                for key, value in episode_data.items():
+                    if key in ["state", "terminated"]:
+                        episode_data[key] = np.array(value)
+                    elif key == "obs":
+                        episode_data[key] = np.array(value).reshape(2,len(value),-1)
+                    else:
+                        episode_data[key] = np.transpose(value)
+                pickle.dump(episode_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            
             rewards.append([sum(x)/len(rewards_avg) for x in zip(*rewards_avg)])
             rewards_avg = []
             episodes_list.append(episode)
 
-            with open(f"results/replays/{i}/returns.pkl", "wb") as file:   #Pickling
+            with open(f"{dir_path}/returns.pkl", "wb") as file:   #Pickling
                 pickle.dump(rewards, file)
 
-            with open(f"results/replays/{i}/losses.pkl", "wb") as file:   #Pickling
+            with open(f"{dir_path}/losses.pkl", "wb") as file:   #Pickling
                 pickle.dump(losses, file)
 
-            with open(f"results/replays/{i}/episodes.pkl", "wb") as file:   #Pickling
+            with open(f"{dir_path}/episodes.pkl", "wb") as file:   #Pickling
                 pickle.dump(episodes_list, file)
 
     runner.close_env()
