@@ -53,11 +53,11 @@ class EpisodeRunner:
         self.mac.init_hidden(batch_size=self.batch_size)
 
         step_data = {
-            "state" : list(self.env.get_state()),
+            "states" : list(self.env.get_state()),
             "obs" : [list(x) for x in self.env.get_obs()],
             "actions": [0,0],
             "rewards": [0,0],
-            "terminated": False
+            "terminals": False
         }
 
         episode_replay = [step_data]
@@ -91,11 +91,11 @@ class EpisodeRunner:
             self.t += 1
 
             step_data = {
-                "state" : list(self.env.get_state()),
+                "states" : list(self.env.get_state()),
                 "obs" : [list(x) for x in self.env.get_obs()],
                 "actions": actions[0].tolist(),
                 "rewards": rewards,
-                "terminated": terminated != env_info.get("episode_limit", False)
+                "terminals": terminated != env_info.get("episode_limit", False)
             }
             episode_replay.append(step_data)
 

@@ -19,6 +19,13 @@ def generate_trajectories(map, output_path):
                     if ".gz" in file:
                             with open(f"{dir}/{file}", 'rb') as handle:
                                 trajectory = pickle.load(handle)
+
+                                trajectory["states"] = trajectory["state"]
+                                del trajectory["state"]
+
+                                trajectory["terminals"] = trajectory["terminated"]
+                                del trajectory["terminated"]
+
                                 trajectories.append(trajectory)
 
     with open(f'{output_path}/{map}.pkl', 'wb') as handle:
