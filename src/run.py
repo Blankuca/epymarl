@@ -49,7 +49,7 @@ def run(_run, _config, _log):
     dir_path = f"results/replays/{map_name}"
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
-    i = len(next(os.walk(dir_path))[1]) + 1
+    i = int(max(next(os.walk(dir_path))[1], default=0)) + 1
     dir_path = f"{dir_path}/{i}"
     os.mkdir(dir_path)
 

@@ -21,7 +21,7 @@
         "program": "src/main.py",
         "console": "integratedTerminal",
         "justMyCode": true,
-        "args": ["--config=iql", "--env-config=gymma", "with", "env_args.time_limit=50", "env_args.key=lbforaging:Foraging-12x12-2p-3f-v2"]
+        "args": ["--config=iql", "--env-config=gymma", "with", "env_args.time_limit=50", "env_args.key=lbforaging:Foraging-8x8-2p-3f-v2"]
     },
     {
         "name": "Plots",
@@ -37,7 +37,8 @@
         "request": "launch",
         "program": "combine_data.py",
         "console": "integratedTerminal",
-        "justMyCode": true
+        "justMyCode": true,
+        "args": ["--map=lbforaging:Foraging-8x8-2p-3f-v2"]
     }
     ]
 }
