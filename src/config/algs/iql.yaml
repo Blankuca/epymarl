@@ -22,6 +22,7 @@ obs_individual_obs: False
 
 agent_output_type: "q"
 learner: "q_learner"
+standardise_returns: False
 standardise_rewards: True
 double_q: True
 use_rnn: False

@@ -4,6 +4,7 @@ from modules.mixers.vdn import VDNMixer
 from modules.mixers.qmix import QMixer
 import torch as th
 from torch.optim import Adam
+from components.standarize_stream import RunningMeanStd
 
 
 class QLearner:
@@ -35,6 +36,12 @@ class QLearner:
         self.last_target_update_step = 0
         self.log_stats_t = -self.args.learner_log_interval - 1
 
+        device = "cuda" if args.use_cuda else "cpu"
+        if self.args.standardise_returns:
+            self.ret_ms = RunningMeanStd(shape=(self.n_agents,), device=device)
+        if self.args.standardise_rewards:
+            self.rew_ms = RunningMeanStd(shape=(1,), device=device)
+
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1]
@@ -45,7 +52,9 @@ class QLearner:
         avail_actions = batch["avail_actions"]
 
         if self.args.standardise_rewards:
-            rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+            self.rew_ms.update(rewards)
+            rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
+
         # Calculate estimated Q-Values
         mac_out = []
         self.mac.init_hidden(batch.batch_size)
@@ -84,8 +93,15 @@ class QLearner:
             chosen_action_qvals = self.mixer(chosen_action_qvals, batch["state"][:, :-1])
             target_max_qvals = self.target_mixer(target_max_qvals, batch["state"][:, 1:])
 
+        if self.args.standardise_returns:
+            target_max_qvals = target_max_qvals * th.sqrt(self.ret_ms.var) + self.ret_ms.mean
+
         # Calculate 1-step Q-Learning targets
-        targets = rewards + self.args.gamma * (1 - terminated) * target_max_qvals
+        targets = rewards + self.args.gamma * (1 - terminated) * target_max_qvals.detach()
+
+        if self.args.standardise_returns:
+            self.ret_ms.update(targets)
+            targets = (targets - self.ret_ms.mean) / th.sqrt(self.ret_ms.var)
 
         # Td-error
         td_error = (chosen_action_qvals - targets.detach())

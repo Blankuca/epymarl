@@ -6,6 +6,7 @@ from utils.rl_utils import build_td_lambda_targets
 import torch as th
 from torch.optim import Adam
 from modules.critics import REGISTRY as critic_resigtry
+from components.standarize_stream import RunningMeanStd
 
 
 class PPOLearner:
@@ -30,6 +31,12 @@ class PPOLearner:
         self.critic_training_steps = 0
         self.log_stats_t = -self.args.learner_log_interval - 1
 
+        device = "cuda" if args.use_cuda else "cpu"
+        if self.args.standardise_returns:
+            self.ret_ms = RunningMeanStd(shape=(self.n_agents, ), device=device)
+        if self.args.standardise_rewards:
+            self.rew_ms = RunningMeanStd(shape=(1,), device=device)
+
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
 
@@ -40,7 +47,8 @@ class PPOLearner:
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         actions = actions[:, :-1]
         if self.args.standardise_rewards:
-            rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+            self.rew_ms.update(rewards)
+            rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
 
         # No experiences to train on in this minibatch
         if mask.sum() == 0:
@@ -119,10 +127,17 @@ class PPOLearner:
 
     def train_critic_sequential(self, critic, target_critic, batch, rewards, mask):
         # Optimise critic
-        target_vals = target_critic(batch)[:, :-1]
-        target_vals = target_vals.squeeze(3)
+        with th.no_grad():
+            target_vals = target_critic(batch)
+            target_vals = target_vals.squeeze(3)
+
+        if self.args.standardise_returns:
+            target_vals = target_vals * th.sqrt(self.ret_ms.var) + self.ret_ms.mean
 
         target_returns = self.nstep_returns(rewards, mask, target_vals, self.args.q_nstep)
+        if self.args.standardise_returns:
+            self.ret_ms.update(target_returns)
+            target_returns = (target_returns - self.ret_ms.mean) / th.sqrt(self.ret_ms.var)
 
         running_log = {
             "critic_loss": [],
@@ -152,7 +167,7 @@ class PPOLearner:
         return masked_td_error, running_log
 
     def nstep_returns(self, rewards, mask, values, nsteps):
-        nstep_values = th.zeros_like(values)
+        nstep_values = th.zeros_like(values[:, :-1])
         for t_start in range(rewards.size(1)):
             nstep_return_t = th.zeros_like(values[:, 0])
             for step in range(nsteps + 1):
@@ -161,8 +176,9 @@ class PPOLearner:
                     break
                 elif step == nsteps:
                     nstep_return_t += self.args.gamma ** (step) * values[:, t] * mask[:, t]
-                elif t == rewards.size(1) - 1:
-                    nstep_return_t += self.args.gamma ** (step) * values[:, t] * mask[:, t]
+                elif t == rewards.size(1) - 1 and self.args.add_value_last_step:
+                    nstep_return_t += self.args.gamma ** (step) * rewards[:, t] * mask[:, t]
+                    nstep_return_t += self.args.gamma ** (step + 1) * values[:, t + 1]
                 else:
                     nstep_return_t += self.args.gamma ** (step) * rewards[:, t] * mask[:, t]
             nstep_values[:, t_start, :] = nstep_return_t
