@@ -20,13 +20,16 @@ def generate_trajectories(map, output_path):
                             with open(f"{dir}/{file}", 'rb') as handle:
                                 trajectory = pickle.load(handle)
 
+
+                            if "state" in trajectory.keys():
                                 trajectory["states"] = trajectory["state"]
                                 del trajectory["state"]
 
                                 trajectory["terminals"] = trajectory["terminated"]
                                 del trajectory["terminated"]
 
-                                trajectories.append(trajectory)
+                            trajectory["states"] = np.transpose(trajectory["states"])
+                            trajectories.append(trajectory)
 
     with open(f'{output_path}/{map}.pkl', 'wb') as handle:
         pickle.dump(trajectories, handle, protocol=pickle.HIGHEST_PROTOCOL)

@@ -12,7 +12,7 @@
         "program": "src/main.py",
         "console": "integratedTerminal",
         "justMyCode": true,
-        "args": ["--config=qmix", "--env-config=gymma", "with", "env_args.time_limit=25", "env_args.key=rware:rware-tiny-2ag-v1"]
+        "args": ["--config=iql", "--env-config=gymma", "with", "env_args.time_limit=25", "env_args.key=rware:rware-tiny-2ag-v1"]
     },
     {
         "name": "LBForgaging",

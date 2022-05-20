@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAP="lbforaging:Foraging-12x12-2p-3f-v2"
+MAP="lbforaging:Foraging-8x8-2p-3f-v2"
 
 for i in {0..10}
 do
